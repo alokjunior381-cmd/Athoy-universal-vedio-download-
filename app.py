@@ -19,22 +19,31 @@ def download_media(task_id, url):
         
         output_template = os.path.join(DOWNLOAD_DIR, f"{task_id}.%(ext)s")
         
+        # FFmpeg ছাড়াই যেন সেরা সিঙ্গেল ফাইল ডাউনলোড হতে পারে, তাই ফরম্যাট পরিবর্তন করা হয়েছে
         ydl_opts = {
-            'format': 'bestvideo+bestaudio/best',
+            'format': 'best[ext=mp4]/best',
             'outtmpl': output_template,
-            'merge_output_format': 'mp4',
+            'noplaylist': True,
+            'socket_timeout': 30,
+            'http_headers': {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
         }
         
         with YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
-            filename = f"{task_id}.mp4"
+            ext = info.get('ext', 'mp4')
+            filename = f"{task_id}.{ext}"
             filepath = os.path.join(DOWNLOAD_DIR, filename)
             
-            # যদি মার্জ হয়ে mp4 তৈরি না হয়, তবে ডাউনলোডেড ফাইলের আসল নাম নেওয়া
+            # যদি এক্সটেনশন অন্য কিছু হয় কিন্তু ফাইল থাকে
             if not os.path.exists(filepath):
-                ext = info.get('ext', 'mp4')
-                filename = f"{task_id}.{ext}"
-                filepath = os.path.join(DOWNLOAD_DIR, filename)
+                # ডিরেক্টরি চেক করে ফাইল খুঁজে বের করা
+                for f in os.listdir(DOWNLOAD_DIR):
+                    if f.startswith(task_id):
+                        filename = f
+                        filepath = os.path.join(DOWNLOAD_DIR, filename)
+                        break
 
         tasks[task_id]["status"] = "completed"
         tasks[task_id]["files"] = [
